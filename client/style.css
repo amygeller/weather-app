@@ -1,0 +1,63 @@
+/*Body styling*/
+body{
+    background: rgb(152, 214, 214);
+    font-family:Georgia, 'Times New Roman', Times, serif;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 10px;
+}
+
+/*Input box styling*/
+input{
+    padding:5px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 6px; /* rounds edges */
+    margin-right: 8px; /* This puts a space to the left of the button */
+}
+
+/*Search button styling*/
+button{
+    background: #2c6be8;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding:5px;
+    /* font-size: 14px; */
+    border-radius: 6px;
+}
+
+/* This puts a space to the left of the text box */
+label{
+    margin-right: 8px;
+}
+
+/*Search button styling*/
+button:hover{
+    background: #3e21aa;
+}
+
+/*Forecast table styling*/
+table{
+    border-collapse: collapse;
+    width: 100%;
+    background: rgb(242, 225, 235);
+}
+th,td{
+    padding: 8px;
+    text-align: center;
+}
+th{
+    background: rgb(241, 234, 190);
+}
+tr:nth-child(even){
+    background: rgb(241, 240, 232);
+}
+
+/*Page styling*/
+.card{
+    background: rgb(188, 238, 238);
+    padding: 20px;
+    border-radius: 10px;
+    margin-top: 10px;
+}

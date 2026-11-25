@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Secrets
+.env
+
+# Assignment / personal files (not part of the code)
+SubmissionDocs/
+*.zip
+Screenshot *.png
+Screen Recording *
+*.drawio
+
+# Mac junk
+.DS_Store
+

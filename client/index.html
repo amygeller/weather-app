@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css" />
+    <title>Weather App</title>
+  </head>
+  <body>
+    <div id="app">
+      <h1>Weather App</h1>
+      <label for="cityInput">Enter city below:</label>
+      <input id="cityInput" v-model="city" @keyup.enter="getWeather" />
+      <button @click="getWeather">Search</button>
+
+      <h2 v-if="weather !== null ">
+        Weather for: {{weather.city}}, {{weather.country}}
+      </h2>
+      <p v-if="loading === true">It is loading</p>
+      <p v-if="error !== ''">Error: {{error}}, try again</p>
+
+      <!-- search help box -->
+      <details class="card" v-if="weather == null">
+        <summary>Search Help</summary>
+        <p>
+          To search, all you need is to enter the city, but to be sure you have
+          the correct country, you can type in the city followed by a comma and
+          the country, as an abbreviation or not. If the city has a shorthand,
+          like Saint Paul -> St. Paul, proper punctuation is necessary.
+        </p>
+        <p>
+          Examples: Dublin, IE; Dublin, Ireland; Dublin, US; Dublin, OH, USA;
+          St. Paul
+        </p>
+        <p>*The comma is obligatory!</p>
+      </details>
+
+      <!-- Forecast Table -->
+      <div class="card" v-if="weather !== null">
+        <h3>3 Day Forecast</h3>
+        <table>
+          <tr>
+            <th>Date</th>
+            <th>Pack for</th>
+            <th>Low</th>
+            <th>High</th>
+            <th>Highest wind speed</th>
+            <th>Total rainfall</th>
+            <th>Feels Like</th>
+            <th>Dew point</th>
+            <th>Advice</th>
+          </tr>
+          <tr v-for="day of weather.days">
+            <td>{{day.date}}</td>
+            <td>{{packing(day)}}</td>
+            <td>{{day.lowestTemp}}&deg;C</td>
+            <td>{{day.maxTemp}}&deg;C</td>
+            <td>{{day.maxWind}}m/s</td>
+            <td>{{day.totalRain}}mm</td>
+            <td>{{day.avgFeelsLike}}&deg;C</td>
+            <td>{{day.dewPoint}}&deg;C</td>
+            <td>{{getComfortAdvice(day)}}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Umbrella -->
+      <div class="card" v-if="weather !== null">
+        <h3>Rain Check</h3>
+        <p v-if="isRaining()">
+          Bring an umbrella! There is rain in the forcast
+        </p>
+        <p v-else>No umbrella needed!</p>
+      </div>
+
+      <!-- Air Quality -->
+      <div class="card" v-if="weather !== null">
+        <h3>Air quality</h3>
+        <div v-if="getWarnings().length > 0">
+          <p>Air quality warnings:</p>
+          <div v-for="warning of getWarnings()">
+            <p>
+              {{pollutantNames[warning.name]}} is {{warning.value}} µg/m³ which
+              is {{warning.level}}
+            </p>
+            <p>{{healthRisks[warning.level]}}</p>
+          </div>
+        </div>
+        <p v-else>Air quality is good</p>
+      </div>
+    </div>
+    <script type="module">
+      import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
+
+      createApp({
+        data() {
+          return {
+            city: "",
+            weather: null,
+            loading: false,
+            error: "",
+            pollutionLevelNames: [
+              "good",
+              "fair",
+              "moderate",
+              "poor",
+              "very poor",
+            ],
+            pollutionLimits: {
+              so2: [20, 80, 250, 350],
+              no2: [40, 70, 150, 200],
+              pm10: [20, 50, 100, 200],
+              pm2_5: [10, 25, 50, 75],
+              o3: [60, 100, 140, 180],
+              co: [4400, 9400, 12400, 15400],
+            },
+            pollutantNames: {
+              so2: "Sulphur dioxide (SO₂)",
+              no2: "Nitrogen dioxide (NO₂)",
+              pm10: "Particulates PM10",
+              pm2_5: "Particulates PM2.5",
+              o3: "Ozone (O₃)",
+              co: "Carbon monoxide (CO)",
+            },
+            healthRisks: {
+              good: "",
+              fair: "You can carry on as normal, if you are at-risk (those with lung conditions) you should be mindful of strenuous outdoor physical activity.",
+              moderate:
+                "The general public can carry on as normal, those who are at-risk should reduce outdoor activity and be mindful of symptoms.",
+              poor: "Anyone experiencing discomfort (coughing, sore throat, etc) should reduce their time spent outdoors.",
+              "very poor": "Everyone should try to reduce their time outdoors.",
+            },
+            comfortLevelNames: ["comfortable", "sticky", "oppressive"],
+            dewPointLimits: [13, 18],
+            comfortAdvice: {
+              Cold: {
+                comfortable:
+                  "The air is cold and dry, think about dry skin and chapped lips.",
+                sticky:
+                  "The air is cold and slightly damp. Don't forget to layer up.",
+                oppressive:
+                  "The air is cold and wet. Don't forget, this makes things hard to dry.",
+              },
+              Mild: {
+                comfortable:
+                  "The air is mild and comfortable, ideal for travel!",
+                sticky:
+                  "The air is mild and sticky, you will start to be able to feel the humidity.",
+                oppressive:
+                  "The air is mild and oppressive. It will feel heavy and hot.",
+              },
+              Hot: {
+                comfortable: "Dry heat. Don't forget sunscreen and water.",
+                sticky:
+                  "It is warm and humid, drink water and wear breathable clothes.",
+                oppressive:
+                  "Very hot and humid, stay hydrated and take breaks in cool areas.",
+              },
+            },
+          };
+        },
+        methods: {
+          //Returns data collected from server
+          async getWeather() {
+            this.weather = null;
+            this.error = "";
+
+            let safeCity = encodeURIComponent(this.city);
+
+            try {
+              this.loading = true;
+              let reply = await fetch("/api/v1/forecast?city=" + safeCity);
+              this.loading = false;
+              let data = await reply.json();
+              if (reply.ok) {
+                this.weather = data;
+              } else {
+                this.error = data.error;
+              }
+            } catch (err) {
+              this.loading = false;
+              this.error = "The fetch did not work";
+            }
+          },
+
+          //Returns true if weather is in forecast
+          isRaining() {
+            for (const day of this.weather.days) {
+              if (day.totalRain > 0) {
+                return true;
+              }
+            }
+            return false;
+          },
+
+          //Returns the cold/mild/hot packing reference
+          packing(day) {
+            let avgTemp = (day.lowestTemp + day.maxTemp) / 2;
+            if (avgTemp < 8) {
+              return "Cold";
+            } else if (avgTemp > 24) {
+              return "Hot";
+            } else {
+              return "Mild";
+            }
+          },
+
+          //fetches pollutant information for warning creation
+          getPollutionLevel(score, pollutionLimits) {
+            for (let i = 0; i < pollutionLimits.length; i++) {
+              if (score < pollutionLimits[i]) {
+                return this.pollutionLevelNames[i];
+              }
+            }
+            return this.pollutionLevelNames[pollutionLimits.length];
+          },
+
+          //Fetches comfort level for advice
+          getComfortLevel(score, dewPointLimits) {
+            for (let i = 0; i < dewPointLimits.length; i++) {
+              if (score < dewPointLimits[i]) {
+                return this.comfortLevelNames[i];
+              }
+            }
+            return this.comfortLevelNames[dewPointLimits.length];
+          },
+
+          //Creates warnings for high pollutants
+          getWarnings() {
+            let warnings = [];
+            for (const pollutant of Object.keys(this.pollutionLimits)) {
+              let level = this.getPollutionLevel(
+                this.weather.pollution[pollutant],
+                this.pollutionLimits[pollutant],
+              );
+              if (level !== "good") {
+                warnings.push({
+                  name: pollutant,
+                  value: this.weather.pollution[pollutant],
+                  level: level,
+                });
+              }
+            }
+            return warnings;
+          },
+
+          //Returns advice from 3x3 advice matrix
+          getComfortAdvice(day) {
+            let packType = this.packing(day);
+            let comfortType = this.getComfortLevel(
+              day.dewPoint,
+              this.dewPointLimits,
+            );
+            return this.comfortAdvice[packType][comfortType];
+          },
+        },
+      }).mount("#app");
+    </script>
+  </body>
+</html>
